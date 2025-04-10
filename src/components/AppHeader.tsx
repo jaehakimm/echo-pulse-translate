@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { LayoutHorizontal, LayoutVertical, Settings } from 'lucide-react';
+import { LayoutGrid, Rows, Settings } from 'lucide-react';
 
 interface AppHeaderProps {
   layoutMode: 'horizontal' | 'vertical';
@@ -23,7 +23,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ layoutMode, onLayoutChange }) => 
           className={`rounded-full ${layoutMode === 'horizontal' ? 'bg-primary/20 border-primary' : 'bg-transparent'}`}
           onClick={() => onLayoutChange('horizontal')}
         >
-          <LayoutHorizontal className={`h-5 w-5 ${layoutMode === 'horizontal' ? 'text-primary' : ''}`} />
+          <Rows className={`h-5 w-5 ${layoutMode === 'horizontal' ? 'text-primary' : ''}`} />
         </Button>
         
         <Button 
@@ -32,7 +32,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ layoutMode, onLayoutChange }) => 
           className={`rounded-full ${layoutMode === 'vertical' ? 'bg-primary/20 border-primary' : 'bg-transparent'}`}
           onClick={() => onLayoutChange('vertical')}
         >
-          <LayoutVertical className={`h-5 w-5 ${layoutMode === 'vertical' ? 'text-primary' : ''}`} />
+          <LayoutGrid className={`h-5 w-5 ${layoutMode === 'vertical' ? 'text-primary' : ''}`} />
         </Button>
 
         <Button 
