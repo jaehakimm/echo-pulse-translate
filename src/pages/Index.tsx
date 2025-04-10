@@ -1,11 +1,15 @@
+
 import { useState } from 'react';
 import AppHeader from '@/components/AppHeader';
 import TranslationPanel from '@/components/TranslationPanel';
+
 const Index = () => {
-  const [layoutMode, setLayoutMode] = useState<'horizontal' | 'vertical'>('horizontal');
-  const handleLayoutChange = (mode: 'horizontal' | 'vertical') => {
+  const [layoutMode, setLayoutMode] = useState<'horizontal' | 'vertical' | 'chat'>('horizontal');
+  
+  const handleLayoutChange = (mode: 'horizontal' | 'vertical' | 'chat') => {
     setLayoutMode(mode);
   };
+  
   return <div className="min-h-screen p-6 md:p-12 flex flex-col">
       <AppHeader layoutMode={layoutMode} onLayoutChange={handleLayoutChange} />
       
@@ -20,4 +24,5 @@ const Index = () => {
       </footer>
     </div>;
 };
+
 export default Index;

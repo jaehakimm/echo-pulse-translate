@@ -1,10 +1,13 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { LayoutGrid, Rows, Settings } from 'lucide-react';
+import { Rows, LayoutGrid, MessageSquare, Settings } from 'lucide-react';
+
 interface AppHeaderProps {
-  layoutMode: 'horizontal' | 'vertical';
-  onLayoutChange: (mode: 'horizontal' | 'vertical') => void;
+  layoutMode: 'horizontal' | 'vertical' | 'chat';
+  onLayoutChange: (mode: 'horizontal' | 'vertical' | 'chat') => void;
 }
+
 const AppHeader: React.FC<AppHeaderProps> = ({
   layoutMode,
   onLayoutChange
@@ -24,10 +27,15 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           <LayoutGrid className={`h-5 w-5 ${layoutMode === 'vertical' ? 'text-primary' : ''}`} />
         </Button>
 
+        <Button variant="outline" size="icon" className={`rounded-full ${layoutMode === 'chat' ? 'bg-primary/20 border-primary' : 'bg-transparent'}`} onClick={() => onLayoutChange('chat')}>
+          <MessageSquare className={`h-5 w-5 ${layoutMode === 'chat' ? 'text-primary' : ''}`} />
+        </Button>
+
         <Button variant="outline" size="icon" className="rounded-full">
           <Settings className="h-5 w-5" />
         </Button>
       </div>
     </header>;
 };
+
 export default AppHeader;

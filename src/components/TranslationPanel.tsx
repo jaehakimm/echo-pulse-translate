@@ -4,9 +4,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, VolumeX, Volume2 } from "lucide-react";
 import SpeechWaveform from './SpeechWaveform';
+import ChatTranslation from './ChatTranslation';
 
 interface TranslationPanelProps {
-  layoutMode: 'horizontal' | 'vertical';
+  layoutMode: 'horizontal' | 'vertical' | 'chat';
 }
 
 const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
@@ -119,6 +120,21 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
     }
   };
 
+  // If chat layout is selected, render the chat component
+  if (layoutMode === 'chat') {
+    return (
+      <ChatTranslation
+        isListening={isListening}
+        isMuted={isMuted}
+        thaiText={thaiText}
+        translatedText={translatedText}
+        toggleListening={toggleListening}
+        toggleMute={toggleMute}
+      />
+    );
+  }
+
+  // For horizontal or vertical layouts
   const mainContainerClass = layoutMode === 'horizontal' 
     ? 'flex flex-col md:flex-row gap-4 h-full' 
     : 'flex flex-col gap-4 h-full';
