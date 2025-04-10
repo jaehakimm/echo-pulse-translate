@@ -6,8 +6,9 @@ import { Mic, MicOff, VolumeX, Volume2 } from "lucide-react";
 import SpeechWaveform from './SpeechWaveform';
 
 interface Message {
-  language: 'thai' | 'english';
-  text: string;
+  isUser: boolean;
+  thaiText: string;
+  englishText: string;
   timestamp: Date;
 }
 
@@ -29,14 +30,44 @@ const ChatTranslation: React.FC<ChatTranslationProps> = ({
   toggleMute
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [previousThaiText, setPreviousThaiText] = useState<string>('');
+  const [previousTranslatedText, setPreviousTranslatedText] = useState<string>('');
 
-  // Add messages when text changes
+  // Process incoming text into complete messages
   React.useEffect(() => {
-    if (thaiText && !messages.find(m => m.text === thaiText && m.language === 'thai')) {
-      setMessages(prev => [...prev, { language: 'thai', text: thaiText, timestamp: new Date() }]);
-    }
-    if (translatedText && !messages.find(m => m.text === translatedText && m.language === 'english')) {
-      setMessages(prev => [...prev, { language: 'english', text: translatedText, timestamp: new Date() }]);
+    // Only create a message when there is both Thai and English text
+    // and only when one of them changes and is different from what we've seen before
+    if (
+      thaiText && 
+      translatedText && 
+      (thaiText !== previousThaiText || translatedText !== previousTranslatedText)
+    ) {
+      // Ensure we don't add duplicate messages
+      const existingMessage = messages.find(
+        m => m.thaiText === thaiText && m.englishText === translatedText
+      );
+      
+      if (!existingMessage) {
+        setMessages(prev => [...prev, { 
+          isUser: true, 
+          thaiText, 
+          englishText: translatedText, 
+          timestamp: new Date() 
+        }]);
+        
+        // Simulate AI response (in a real app, this would be the actual AI response)
+        setTimeout(() => {
+          setMessages(prev => [...prev, { 
+            isUser: false, 
+            thaiText: `[AI response in Thai for: "${thaiText}"]`, 
+            englishText: `[AI response in English for: "${translatedText}"]`, 
+            timestamp: new Date() 
+          }]);
+        }, 1000);
+      }
+      
+      setPreviousThaiText(thaiText);
+      setPreviousTranslatedText(translatedText);
     }
   }, [thaiText, translatedText]);
 
@@ -71,17 +102,22 @@ const ChatTranslation: React.FC<ChatTranslationProps> = ({
               <div 
                 key={index} 
                 className={`max-w-[80%] p-4 rounded-xl animate-fade-in ${
-                  message.language === 'thai' 
-                    ? 'bg-thai/10 border border-thai/20 self-start rounded-bl-none' 
-                    : 'bg-english/10 border border-english/20 self-end rounded-br-none'
+                  message.isUser 
+                    ? 'bg-thai/10 border border-thai/20 self-end rounded-br-none' 
+                    : 'bg-english/10 border border-english/20 self-start rounded-bl-none'
                 }`}
               >
-                <p className={`text-lg ${message.language === 'thai' ? 'thai-text' : ''}`}>
-                  {message.text}
-                </p>
-                <span className="text-xs text-muted-foreground block mt-2">
-                  {message.language === 'thai' ? 'Thai' : 'English'} • {message.timestamp.toLocaleTimeString()}
-                </span>
+                <div className="flex flex-col gap-2">
+                  <p className="text-lg thai-text">
+                    {message.thaiText}
+                  </p>
+                  <p className="text-lg">
+                    {message.englishText}
+                  </p>
+                  <span className="text-xs text-muted-foreground block mt-1">
+                    {message.isUser ? 'User' : 'AI'} • {message.timestamp.toLocaleTimeString()}
+                  </span>
+                </div>
               </div>
             ))
           ) : (

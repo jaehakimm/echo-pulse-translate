@@ -16,6 +16,8 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
   const [thaiText, setThaiText] = useState<string>('');
   const [translatedText, setTranslatedText] = useState<string>('');
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
+  const [interimThaiText, setInterimThaiText] = useState<string>('');
+  const [completedSentences, setCompletedSentences] = useState<string[]>([]);
   
   useEffect(() => {
     // Initialize Web Speech API
@@ -35,15 +37,37 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
             finalTranscript += transcript;
+            // When we have a final result, add it to our completed sentences
+            setCompletedSentences(prev => {
+              const newSentences = [...prev];
+              if (interimThaiText) {
+                // If we had interim text, replace it with the final transcript
+                newSentences.pop();
+              }
+              // Add the final transcript as a complete sentence
+              if (transcript.trim()) {
+                newSentences.push(transcript.trim());
+              }
+              return newSentences;
+            });
+            setInterimThaiText('');
+            
             // Translate the text when we have a final result
             translateText(transcript);
           } else {
             interimTranscript += transcript;
+            setInterimThaiText(interimTranscript);
           }
         }
         
+        // Combine completed sentences and the current interim text
+        const fullText = [
+          ...completedSentences,
+          interimTranscript ? interimTranscript : ''
+        ].filter(Boolean).join(' ');
+        
         // Update the Thai text state
-        setThaiText(finalTranscript || interimTranscript);
+        setThaiText(fullText);
       };
       
       recognitionInstance.onerror = (event) => {
@@ -89,7 +113,7 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
     // Simple mock translation delay
     setTimeout(() => {
       // This is where you would integrate with an actual translation API
-      const mockTranslation = `[English translation would appear here for: "${text}"]`;
+      const mockTranslation = `[English translation for: "${text}"]`;
       setTranslatedText(mockTranslation);
       
       // If not muted, speak the translation
