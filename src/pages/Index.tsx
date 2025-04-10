@@ -1,12 +1,30 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import { useState } from 'react';
+import AppHeader from '@/components/AppHeader';
+import TranslationPanel from '@/components/TranslationPanel';
 
 const Index = () => {
+  const [layoutMode, setLayoutMode] = useState<'horizontal' | 'vertical'>('horizontal');
+
+  const handleLayoutChange = (mode: 'horizontal' | 'vertical') => {
+    setLayoutMode(mode);
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen p-6 md:p-12 flex flex-col">
+      <AppHeader layoutMode={layoutMode} onLayoutChange={handleLayoutChange} />
+      
+      <main className="flex-grow">
+        <TranslationPanel layoutMode={layoutMode} />
+      </main>
+      
+      <footer className="mt-8 text-center text-sm text-muted-foreground">
+        <div className="animate-pulse-glow">
+          <span className="gradient-border inline-block px-4 py-1 rounded-full">
+            EchoPulse Translate — Powered by AI
+          </span>
+        </div>
+      </footer>
     </div>
   );
 };
