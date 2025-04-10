@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Mic, MicOff, VolumeX, Volume2 } from "lucide-react";
-import SpeechWaveform from './SpeechWaveform';
+import ThaiSpeechPanel from './ThaiSpeechPanel';
+import EnglishTranslationPanel from './EnglishTranslationPanel';
 import ChatTranslation from './ChatTranslation';
+import { SpeechRecognitionService } from '../services/SpeechRecognitionService';
+import { TranslationService } from '../services/TranslationService';
 
 interface TranslationPanelProps {
   layoutMode: 'horizontal' | 'vertical' | 'chat';
@@ -15,135 +15,90 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [thaiText, setThaiText] = useState<string>('');
   const [translatedText, setTranslatedText] = useState<string>('');
-  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
   const [interimThaiText, setInterimThaiText] = useState<string>('');
   const [completedSentences, setCompletedSentences] = useState<string[]>([]);
   
+  const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognitionService | null>(null);
+  const [translationService] = useState<TranslationService>(new TranslationService());
+  
+  // Initialize Web Speech API
   useEffect(() => {
-    // Initialize Web Speech API
-    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognitionInstance = new SpeechRecognition();
-      
-      recognitionInstance.continuous = true;
-      recognitionInstance.interimResults = true;
-      recognitionInstance.lang = 'th-TH'; // Thai language
-      
-      recognitionInstance.onresult = (event) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-        
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript;
-            // When we have a final result, add it to our completed sentences
-            setCompletedSentences(prev => {
-              const newSentences = [...prev];
-              if (interimThaiText) {
-                // If we had interim text, replace it with the final transcript
-                newSentences.pop();
-              }
-              // Add the final transcript as a complete sentence
-              if (transcript.trim()) {
-                newSentences.push(transcript.trim());
-              }
-              return newSentences;
-            });
-            setInterimThaiText('');
-            
-            // Translate the text when we have a final result
-            translateText(transcript);
-          } else {
-            interimTranscript += transcript;
-            setInterimThaiText(interimTranscript);
-          }
-        }
+    const service = new SpeechRecognitionService(
+      (interimText) => {
+        setInterimThaiText(interimText);
         
         // Combine completed sentences and the current interim text
         const fullText = [
           ...completedSentences,
-          interimTranscript ? interimTranscript : ''
+          interimText ? interimText : ''
         ].filter(Boolean).join(' ');
         
         // Update the Thai text state
         setThaiText(fullText);
-      };
-      
-      recognitionInstance.onerror = (event) => {
-        console.error('Speech recognition error', event.error);
+      },
+      (finalText) => {
+        setCompletedSentences(prev => {
+          const newSentences = [...prev];
+          if (interimThaiText) {
+            // If we had interim text, replace it with the final transcript
+            newSentences.pop();
+          }
+          // Add the final transcript as a complete sentence
+          if (finalText.trim()) {
+            newSentences.push(finalText.trim());
+          }
+          return newSentences;
+        });
+        setInterimThaiText('');
+        
+        // Translate the text when we have a final result
+        translateText(finalText);
+      },
+      (error) => {
+        console.error(error);
         setIsListening(false);
-      };
-      
-      recognitionInstance.onend = () => {
-        if (isListening) {
-          recognitionInstance.start();
-        }
-      };
-      
-      setRecognition(recognitionInstance);
-    } else {
-      console.error('Speech recognition not supported');
-    }
+      }
+    );
+    
+    setSpeechRecognition(service);
     
     // Cleanup
     return () => {
-      if (recognition) {
-        recognition.stop();
-      }
+      service.stop();
     };
   }, []);
   
-  useEffect(() => {
-    if (recognition && isListening) {
-      try {
-        recognition.start();
-      } catch (error) {
-        console.error('Error starting recognition', error);
-      }
-    } else if (recognition) {
-      recognition.stop();
-    }
-  }, [isListening, recognition]);
-
-  const translateText = async (text: string) => {
-    // For demo purposes, we're using a mock translation
-    // In a real app, you would call a translation API here
-    
-    // Simple mock translation delay
-    setTimeout(() => {
-      // This is where you would integrate with an actual translation API
-      const mockTranslation = `[English translation for: "${text}"]`;
-      setTranslatedText(mockTranslation);
-      
-      // If not muted, speak the translation
-      if (!isMuted) {
-        speakTranslation(mockTranslation);
-      }
-    }, 500);
-  };
-
-  const speakTranslation = (text: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      window.speechSynthesis.speak(utterance);
-    }
-  };
-
+  // Toggle listening state
   const toggleListening = () => {
-    setIsListening(prev => !prev);
-  };
-
-  const toggleMute = () => {
-    setIsMuted(prev => !prev);
-    
-    // Stop any ongoing speech when muting
-    if (!isMuted && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+    if (speechRecognition) {
+      const newListeningState = speechRecognition.toggle();
+      setIsListening(newListeningState);
     }
   };
-
+  
+  // Toggle mute state
+  const toggleMute = () => {
+    setIsMuted(prev => {
+      const newMuteState = !prev;
+      
+      // Stop any ongoing speech when muting
+      if (newMuteState && 'speechSynthesis' in window) {
+        translationService.stopSpeaking();
+      }
+      
+      return newMuteState;
+    });
+  };
+  
+  // Translate text
+  const translateText = async (text: string) => {
+    const translation = await translationService.translateText(text);
+    setTranslatedText(translation);
+    
+    // Speak the translation if not muted
+    translationService.speakTranslation(translation, isMuted);
+  };
+  
   // If chat layout is selected, render the chat component
   if (layoutMode === 'chat') {
     return (
@@ -171,72 +126,20 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
     <div className={mainContainerClass}>
       {/* Thai Speech Input Panel */}
       <div className={panelClass}>
-        <Card className="glass-card h-full flex flex-col p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gradient">Thai Speech</h2>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className={`rounded-full ${isListening ? 'bg-thai/20 border-thai' : 'bg-transparent'}`}
-              onClick={toggleListening}
-            >
-              {isListening ? <Mic className="h-5 w-5 text-thai" /> : <MicOff className="h-5 w-5" />}
-            </Button>
-          </div>
-          
-          <div className="flex-grow glass-panel rounded-xl p-6 overflow-auto relative">
-            {thaiText ? (
-              <p className="thai-text text-3xl font-medium animate-fade-in whitespace-pre-wrap">
-                {thaiText}
-              </p>
-            ) : (
-              <p className="text-muted-foreground text-center absolute inset-0 flex items-center justify-center">
-                {isListening ? "Waiting for Thai speech..." : "Click the microphone to start"}
-              </p>
-            )}
-          </div>
-          
-          {isListening && (
-            <div className="mt-4 flex justify-center">
-              <SpeechWaveform type="thai" />
-            </div>
-          )}
-        </Card>
+        <ThaiSpeechPanel
+          isListening={isListening}
+          thaiText={thaiText}
+          toggleListening={toggleListening}
+        />
       </div>
 
       {/* English Translation Panel */}
       <div className={panelClass}>
-        <Card className="glass-card h-full flex flex-col p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gradient">English Translation</h2>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className={`rounded-full ${!isMuted ? 'bg-english/20 border-english' : 'bg-transparent'}`}
-              onClick={toggleMute}
-            >
-              {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5 text-english" />}
-            </Button>
-          </div>
-          
-          <div className="flex-grow glass-panel rounded-xl p-6 overflow-auto relative">
-            {translatedText ? (
-              <p className="text-3xl font-medium animate-fade-in whitespace-pre-wrap">
-                {translatedText}
-              </p>
-            ) : (
-              <p className="text-muted-foreground text-center absolute inset-0 flex items-center justify-center">
-                Translation will appear here
-              </p>
-            )}
-          </div>
-          
-          {translatedText && !isMuted && (
-            <div className="mt-4 flex justify-center">
-              <SpeechWaveform type="english" />
-            </div>
-          )}
-        </Card>
+        <EnglishTranslationPanel
+          isMuted={isMuted}
+          translatedText={translatedText}
+          toggleMute={toggleMute}
+        />
       </div>
     </div>
   );
