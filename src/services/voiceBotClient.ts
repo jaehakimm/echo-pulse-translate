@@ -1,5 +1,6 @@
 
-import { grpc } from '@grpc/grpc-js'; // Used for types but runtime is grpc-web
+// Import from our mock implementation instead of @grpc/grpc-js
+import { grpc } from '../generated/Speech_to_textServiceClientPb';
 import { Struct } from 'google-protobuf/google/protobuf/struct_pb';
 import {
   ASRConfigRequest,
