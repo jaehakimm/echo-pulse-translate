@@ -1,0 +1,62 @@
+
+syntax = "proto3";
+
+package speech_to_text;
+
+import "google/protobuf/struct.proto";
+
+service SpeechToText {
+  // Get configuration for ASR
+  rpc GetConfig(ASRConfigRequest) returns (ASRConfigResponse);
+
+  // Stream audio from client to server and get transcription results
+  rpc StreamAudio(stream ASRAudioChunk) returns (stream ASRTranscription);
+
+  // Allow client to explicitly interrupt current recognition
+  rpc Interrupt(ASRInterruptRequest) returns (ASRInterruptResponse);
+
+  // Allows client to explicitly disconnect from service
+  rpc Disconnect(ASRDisconnectRequest) returns (ASRDisconnectResponse);
+}
+
+// Configuration request with JSON flexibility
+message ASRConfigRequest {
+  google.protobuf.Struct json_data = 1;
+}
+
+// Configuration response with JSON flexibility
+message ASRConfigResponse {
+  google.protobuf.Struct json_data = 1;
+}
+
+// Audio chunk sent from client to server
+message ASRAudioChunk {
+  bytes audio_data = 1;
+}
+
+// Transcription result sent from server to client
+message ASRTranscription {
+  google.protobuf.Struct json_result = 1;
+}
+
+// Request to interrupt current recognition
+message ASRInterruptRequest {
+  string session_id = 1;
+}
+
+// Response to interrupt request
+message ASRInterruptResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Request to disconnect from service
+message ASRDisconnectRequest {
+  string session_id = 1;
+}
+
+// Response to disconnect request
+message ASRDisconnectResponse {
+  bool success = 1;
+  string message = 2;
+}

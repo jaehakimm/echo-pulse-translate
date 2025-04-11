@@ -5,6 +5,8 @@ import EnglishTranslationPanel from './EnglishTranslationPanel';
 import ChatTranslation from './ChatTranslation';
 import { SpeechRecognitionService } from '../services/SpeechRecognitionService';
 import { TranslationService } from '../services/TranslationService';
+import { voiceBotClient } from '../services/voiceBotClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface TranslationPanelProps {
   layoutMode: 'horizontal' | 'vertical' | 'chat';
@@ -17,60 +19,102 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
   const [translatedText, setTranslatedText] = useState<string>('');
   const [interimThaiText, setInterimThaiText] = useState<string>('');
   const [completedSentences, setCompletedSentences] = useState<string[]>([]);
+  const [useGrpc, setUseGrpc] = useState<boolean>(false);
   
   const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognitionService | null>(null);
   const [translationService] = useState<TranslationService>(new TranslationService());
+  const { toast } = useToast();
   
   // Initialize Web Speech API
   useEffect(() => {
-    const service = new SpeechRecognitionService(
-      (interimText) => {
-        setInterimThaiText(interimText);
-        
-        // Combine completed sentences and the current interim text
-        const fullText = [
-          ...completedSentences,
-          interimText ? interimText : ''
-        ].filter(Boolean).join(' ');
-        
-        // Update the Thai text state
-        setThaiText(fullText);
-      },
-      (finalText) => {
-        setCompletedSentences(prev => {
-          const newSentences = [...prev];
-          if (interimThaiText) {
-            // If we had interim text, replace it with the final transcript
-            newSentences.pop();
+    if (!useGrpc) {
+      const service = new SpeechRecognitionService(
+        (interimText) => {
+          setInterimThaiText(interimText);
+          
+          // Combine completed sentences and the current interim text
+          const fullText = [
+            ...completedSentences,
+            interimText ? interimText : ''
+          ].filter(Boolean).join(' ');
+          
+          // Update the Thai text state
+          setThaiText(fullText);
+        },
+        (finalText) => {
+          setCompletedSentences(prev => {
+            const newSentences = [...prev];
+            if (interimThaiText) {
+              // If we had interim text, replace it with the final transcript
+              newSentences.pop();
+            }
+            // Add the final transcript as a complete sentence
+            if (finalText.trim()) {
+              newSentences.push(finalText.trim());
+            }
+            return newSentences;
+          });
+          setInterimThaiText('');
+          
+          // Translate the text when we have a final result
+          translateText(finalText);
+        },
+        (error) => {
+          console.error(error);
+          toast({
+            title: "Speech Recognition Error",
+            description: error,
+            variant: "destructive"
+          });
+          setIsListening(false);
+        }
+      );
+      
+      setSpeechRecognition(service);
+      
+      // Cleanup
+      return () => {
+        service.stop();
+      };
+    } else {
+      // Initialize gRPC client
+      voiceBotClient.initialize({
+        setTranscript: (text) => {
+          setThaiText(text);
+        },
+        setTranslated: (text) => {
+          setTranslatedText(text);
+          // Speak the translation if not muted
+          if (!isMuted) {
+            translationService.speakTranslation(text, isMuted);
           }
-          // Add the final transcript as a complete sentence
-          if (finalText.trim()) {
-            newSentences.push(finalText.trim());
-          }
-          return newSentences;
-        });
-        setInterimThaiText('');
-        
-        // Translate the text when we have a final result
-        translateText(finalText);
-      },
-      (error) => {
-        console.error(error);
-        setIsListening(false);
-      }
-    );
-    
-    setSpeechRecognition(service);
-    
-    // Cleanup
-    return () => {
-      service.stop();
-    };
-  }, []);
+        },
+        setStatus: (status) => {
+          console.log(status);
+        },
+        showError: (error) => {
+          console.error(error);
+          toast({
+            title: "Speech Recognition Error",
+            description: error.toString(),
+            variant: "destructive"
+          });
+        }
+      });
+      
+      // Cleanup gRPC client
+      return () => {
+        voiceBotClient.cleanupClient();
+      };
+    }
+  }, [useGrpc]);
   
   // Toggle listening state
   const toggleListening = () => {
-    if (speechRecognition) {
+    if (useGrpc) {
+      const isActive = voiceBotClient.toggleMic();
+      setIsListening(isActive);
+    } else if (speechRecognition) {
       const newListeningState = speechRecognition.toggle();
       setIsListening(newListeningState);
     }
@@ -90,8 +134,37 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
     });
   };
   
+  // Toggle between gRPC and Web Speech API
+  const toggleSpeechMode = () => {
+    if (isListening) {
+      if (useGrpc) {
+        voiceBotClient.toggleMic();
+      } else if (speechRecognition) {
+        speechRecognition.stop();
+      }
+      setIsListening(false);
+    }
+    
+    setUseGrpc(prev => {
+      const newMode = !prev;
+      toast({
+        title: `Speech Recognition Mode Changed`,
+        description: `Now using ${newMode ? 'gRPC Server' : 'Web Speech API'} for recognition`,
+      });
+      return newMode;
+    });
+    
+    // Clear text when switching modes
+    setThaiText('');
+    setTranslatedText('');
+    setInterimThaiText('');
+    setCompletedSentences([]);
+  };
+  
   // Translate text
   const translateText = async (text: string) => {
+    if (!text.trim()) return;
+    
     const translation = await translationService.translateText(text);
     setTranslatedText(translation);
     
@@ -109,6 +182,8 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
         translatedText={translatedText}
         toggleListening={toggleListening}
         toggleMute={toggleMute}
+        useGrpc={useGrpc}
+        toggleSpeechMode={toggleSpeechMode}
       />
     );
   }
@@ -130,6 +205,8 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
           isListening={isListening}
           thaiText={thaiText}
           toggleListening={toggleListening}
+          useGrpc={useGrpc}
+          toggleSpeechMode={toggleSpeechMode}
         />
       </div>
 

@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, VolumeX, Volume2 } from "lucide-react";
+import { Mic, MicOff, VolumeX, Volume2, ServerCrash, Laptop } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import SpeechWaveform from './SpeechWaveform';
 
 interface Message {
@@ -19,6 +20,8 @@ interface ChatTranslationProps {
   translatedText: string;
   toggleListening: () => void;
   toggleMute: () => void;
+  useGrpc?: boolean;
+  toggleSpeechMode?: () => void;
 }
 
 const ChatTranslation: React.FC<ChatTranslationProps> = ({
@@ -27,7 +30,9 @@ const ChatTranslation: React.FC<ChatTranslationProps> = ({
   thaiText,
   translatedText,
   toggleListening,
-  toggleMute
+  toggleMute,
+  useGrpc = false,
+  toggleSpeechMode
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [previousThaiText, setPreviousThaiText] = useState<string>('');
@@ -76,6 +81,28 @@ const ChatTranslation: React.FC<ChatTranslationProps> = ({
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold text-gradient">Chat Translation</h2>
         <div className="flex gap-2">
+          {toggleSpeechMode && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="rounded-full"
+                    onClick={toggleSpeechMode}
+                  >
+                    {useGrpc ? 
+                      <ServerCrash className="h-5 w-5 text-cyan-500" /> : 
+                      <Laptop className="h-5 w-5 text-emerald-500" />
+                    }
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{useGrpc ? 'Using gRPC Server' : 'Using Web Speech API'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           <Button 
             variant="outline" 
             size="icon" 
