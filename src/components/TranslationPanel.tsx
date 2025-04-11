@@ -3,113 +3,83 @@ import React, { useState, useEffect } from 'react';
 import ThaiSpeechPanel from './ThaiSpeechPanel';
 import EnglishTranslationPanel from './EnglishTranslationPanel';
 import ChatTranslation from './ChatTranslation';
+import { SpeechRecognitionService } from '../services/SpeechRecognitionService';
 import { TranslationService } from '../services/TranslationService';
-import { voiceBotClient } from '../services/voiceBotClient';
-import { useToast } from '@/hooks/use-toast';
 
 interface TranslationPanelProps {
   layoutMode: 'horizontal' | 'vertical' | 'chat';
 }
 
 const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
-  const [isServiceActive, setIsServiceActive] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [thaiText, setThaiText] = useState<string>('');
   const [translatedText, setTranslatedText] = useState<string>('');
+  const [interimThaiText, setInterimThaiText] = useState<string>('');
   const [completedSentences, setCompletedSentences] = useState<string[]>([]);
   
+  const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognitionService | null>(null);
   const [translationService] = useState<TranslationService>(new TranslationService());
-  const { toast } = useToast();
   
-  // Initialize gRPC translation service
+  // Initialize Web Speech API
   useEffect(() => {
-    console.log("Initializing translation panel...");
-    // Initialize gRPC client
-    voiceBotClient.initialize({
-      setTranscript: (text) => {
-        console.log("Received transcript:", text);
-        setThaiText(text);
+    const service = new SpeechRecognitionService(
+      (interimText) => {
+        setInterimThaiText(interimText);
+        
+        // Combine completed sentences and the current interim text
+        const fullText = [
+          ...completedSentences,
+          interimText ? interimText : ''
+        ].filter(Boolean).join(' ');
+        
+        // Update the Thai text state
+        setThaiText(fullText);
       },
-      setTranslated: (text) => {
-        console.log("Received translation:", text);
-        setTranslatedText(text);
-        // Speak the translation if not muted
-        if (!isMuted) {
-          translationService.speakTranslation(text, isMuted);
-        }
-      },
-      setStatus: (status) => {
-        console.log("Status updated:", status);
-      },
-      showError: (error) => {
-        console.error("Error received:", error);
-        toast({
-          title: "Translation Service Error",
-          description: error.toString(),
-          variant: "destructive"
+      (finalText) => {
+        setCompletedSentences(prev => {
+          const newSentences = [...prev];
+          if (interimThaiText) {
+            // If we had interim text, replace it with the final transcript
+            newSentences.pop();
+          }
+          // Add the final transcript as a complete sentence
+          if (finalText.trim()) {
+            newSentences.push(finalText.trim());
+          }
+          return newSentences;
         });
+        setInterimThaiText('');
+        
+        // Translate the text when we have a final result
+        translateText(finalText);
+      },
+      (error) => {
+        console.error(error);
+        setIsListening(false);
       }
-    });
+    );
     
-    // Start translation service automatically
-    startTranslationService();
+    setSpeechRecognition(service);
     
-    // Cleanup gRPC client
+    // Cleanup
     return () => {
-      console.log("Cleaning up translation panel...");
-      voiceBotClient.cleanupClient();
+      service.stop();
     };
   }, []);
-
-  // Track service active state
-  useEffect(() => {
-    const checkServiceStatus = () => {
-      const status = voiceBotClient.isServiceActive();
-      if (status !== isServiceActive) {
-        console.log(`Service active status changed: ${status}`);
-        setIsServiceActive(status);
-      }
-    };
-
-    // Check initially
-    checkServiceStatus();
-
-    // Set up interval to check status
-    const interval = setInterval(checkServiceStatus, 1000);
-    return () => clearInterval(interval);
-  }, [isServiceActive]);
   
-  // Toggle service state
-  const startTranslationService = () => {
-    console.log("Starting translation service...");
-    const isActive = voiceBotClient.startTranslationService();
-    setIsServiceActive(isActive);
-    
-    if (isActive) {
-      toast({
-        title: "Translation Service Started",
-        description: "gRPC translation service is now active",
-      });
-    }
-  };
-
-  // Toggle microphone
+  // Toggle listening state
   const toggleListening = () => {
-    console.log("Toggling microphone...");
-    const isActive = voiceBotClient.toggleMicrophone();
-    setIsServiceActive(isActive);
-    
-    toast({
-      title: isActive ? "Microphone Activated" : "Microphone Deactivated",
-      description: isActive ? "Now listening for input" : "Stopped listening",
-    });
+    if (speechRecognition) {
+      const newListeningState = speechRecognition.toggle();
+      setIsListening(newListeningState);
+    }
   };
   
   // Toggle mute state
   const toggleMute = () => {
     setIsMuted(prev => {
       const newMuteState = !prev;
-      console.log(`Toggle mute: ${newMuteState ? "Muted" : "Unmuted"}`);
       
       // Stop any ongoing speech when muting
       if (newMuteState && 'speechSynthesis' in window) {
@@ -120,18 +90,25 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
     });
   };
   
+  // Translate text
+  const translateText = async (text: string) => {
+    const translation = await translationService.translateText(text);
+    setTranslatedText(translation);
+    
+    // Speak the translation if not muted
+    translationService.speakTranslation(translation, isMuted);
+  };
+  
   // If chat layout is selected, render the chat component
   if (layoutMode === 'chat') {
     return (
       <ChatTranslation
-        isListening={isServiceActive}
+        isListening={isListening}
         isMuted={isMuted}
         thaiText={thaiText}
         translatedText={translatedText}
         toggleListening={toggleListening}
         toggleMute={toggleMute}
-        useGrpc={true}
-        toggleSpeechMode={() => {}}
       />
     );
   }
@@ -150,11 +127,9 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
       {/* Thai Speech Input Panel */}
       <div className={panelClass}>
         <ThaiSpeechPanel
-          isListening={isServiceActive}
+          isListening={isListening}
           thaiText={thaiText}
           toggleListening={toggleListening}
-          useGrpc={true}
-          toggleSpeechMode={undefined}
         />
       </div>
 
