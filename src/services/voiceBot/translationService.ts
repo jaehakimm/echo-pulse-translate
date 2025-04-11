@@ -1,5 +1,6 @@
 
 import { TranslationService } from '../TranslationService';
+import { VoiceBotState } from './types';
 
 // Translation service
 const translationService = new TranslationService();

@@ -2,7 +2,6 @@
 import { grpc } from '../../generated/Speech_to_textServiceClientPb';
 import { Struct } from 'google-protobuf/google/protobuf/struct_pb';
 import { ASRConfigRequest } from '../../generated/speech_to_text_pb';
-import { SpeechToTextClient } from '../../generated/Speech_to_textServiceClientPb';
 import { VoiceBotState } from './types';
 import { processAudio, TARGET_SAMPLE_RATE } from './audioUtils';
 import { translateText } from './translationService';
@@ -11,42 +10,15 @@ import { translateText } from './translationService';
 export const SERVER_ADDRESS = process.env.REACT_APP_GRPC_SERVER_URL || 'ec2-13-215-200-219.ap-southeast-1.compute.amazonaws.com:50052';
 
 // Start streaming
-export async function startStreaming(state: VoiceBotState, stopStreaming: (notifyServer?: boolean) => void): Promise<void> {
+export async function startStreaming(state: VoiceBotState, stopStreamingCallback: (notifyServer?: boolean) => void): Promise<void> {
   if (state.isMicOn || !state.grpcClient) {
     state.ui.setStatus("Already streaming or client not ready.");
     return;
   }
 
-  state.ui.setStatus("Initializing audio...");
+  state.ui.setStatus("Initializing for direct translation...");
   try {
-    // Get Audio Stream
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error("getUserMedia not supported on your browser!");
-    }
-    
-    state.mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        sampleRate: TARGET_SAMPLE_RATE,
-        channelCount: 1,
-      },
-      video: false,
-    });
-
-    // Create Audio Context
-    state.audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
-    const source = state.audioContext.createMediaStreamSource(state.mediaStream);
-
-    // Create Audio Processor
-    const bufferSize = 4096;
-    state.audioProcessorNode = state.audioContext.createScriptProcessor(bufferSize, 1, 1);
-    state.audioProcessorNode.onaudioprocess = (event) => processAudio(event, state, () => stopStreaming());
-
-    source.connect(state.audioProcessorNode);
-    state.audioProcessorNode.connect(state.audioContext.destination);
-
-    state.ui.setStatus("Audio initialized. Connecting to gRPC server...");
-
-    // Send Initial Config
+    // Send Initial Config without mic
     const configRequest = new ASRConfigRequest();
     const configData = {
       asr_provider: "google-cloud",
@@ -70,8 +42,8 @@ export async function startStreaming(state: VoiceBotState, stopStreaming: (notif
       });
     });
 
-    // Start Audio Stream
-    state.ui.setStatus("Starting audio stream...");
+    // Start Audio Stream (but we're not using microphone)
+    state.ui.setStatus("Connecting to translation service...");
     state.audioStreamCall = state.grpcClient.streamAudio(metadata);
 
     // Handle incoming transcriptions
@@ -103,7 +75,7 @@ export async function startStreaming(state: VoiceBotState, stopStreaming: (notif
     // Handle stream end
     state.audioStreamCall.on('end', () => {
       state.ui.setStatus("Stream ended by server.");
-      stopStreaming(false);
+      stopStreamingCallback(false);
     });
 
     // Handle errors
@@ -113,7 +85,7 @@ export async function startStreaming(state: VoiceBotState, stopStreaming: (notif
       } else {
         state.ui.setStatus("Stream cancelled.");
       }
-      stopStreaming(false);
+      stopStreamingCallback(false);
     });
 
     // Handle status
@@ -124,15 +96,15 @@ export async function startStreaming(state: VoiceBotState, stopStreaming: (notif
       }
     });
 
-    // Mic is now ON
-    state.isMicOn = true;
+    // Translation service is now ON
+    state.isMicOn = true; // Keep for backward compatibility
     state.audioQueue = [];
     state.isSending = false;
-    state.ui.setStatus("Streaming started. Mic ON.");
+    state.ui.setStatus("Translation service connected. Ready for text.");
 
   } catch (error) {
-    state.ui.showError(`Failed to start streaming: ${error}`);
-    stopStreaming();
+    state.ui.showError(`Failed to connect translation service: ${error}`);
+    stopStreamingCallback();
   }
 }
 
@@ -143,7 +115,7 @@ export function stopStreaming(state: VoiceBotState, notifyServer = true): void {
     return;
   }
   
-  state.ui.setStatus("Stopping stream...");
+  state.ui.setStatus("Stopping translation service...");
   state.isMicOn = false;
 
   // Stop gRPC Stream
@@ -159,23 +131,5 @@ export function stopStreaming(state: VoiceBotState, notifyServer = true): void {
   state.audioQueue = [];
   state.isSending = false;
 
-  // Stop Audio Processing
-  if (state.audioProcessorNode) {
-    state.audioProcessorNode.disconnect();
-    state.audioProcessorNode.onaudioprocess = null;
-    state.audioProcessorNode = null;
-  }
-  
-  if (state.audioContext && state.audioContext.state !== 'closed') {
-    state.audioContext.close().catch(e => console.error("Error closing AudioContext:", e));
-    state.audioContext = null;
-  }
-
-  // Release Media Stream
-  if (state.mediaStream) {
-    state.mediaStream.getTracks().forEach(track => track.stop());
-    state.mediaStream = null;
-  }
-
-  state.ui.setStatus("Streaming stopped. Mic OFF.");
+  state.ui.setStatus("Translation service disconnected.");
 }

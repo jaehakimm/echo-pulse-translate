@@ -25,22 +25,22 @@ const state: VoiceBotState = {
 // Initialize gRPC client
 function initialize(callbacks: UICallbacks): void {
   state.ui = callbacks;
-  state.ui.setStatus("Initializing gRPC client...");
+  state.ui.setStatus("Initializing gRPC translation service...");
   
   try {
     state.grpcClient = new SpeechToTextClient(SERVER_ADDRESS);
-    state.ui.setStatus("Client initialized. Ready to start.");
+    state.ui.setStatus("Translation service initialized. Ready to start.");
   } catch (error) {
-    state.ui.showError(`Failed to initialize gRPC client: ${error}`);
+    state.ui.showError(`Failed to initialize translation service: ${error}`);
     state.ui.setStatus("Initialization failed.");
   }
 }
 
-// Public Controls
-function toggleMic(): boolean {
+// Start the translation service
+function startTranslationService(): boolean {
   if (state.isMicOn) {
-    stopStreaming(state);
-    return false;
+    state.ui.setStatus("Translation service already active");
+    return true;
   } else {
     if (!state.grpcClient) {
       initialize(state.ui);
@@ -49,10 +49,15 @@ function toggleMic(): boolean {
       startStreaming(state, (notifyServer = true) => stopStreaming(state, notifyServer));
       return true;
     } else {
-      state.ui.showError("Cannot start, client initialization failed.");
+      state.ui.showError("Cannot start, service initialization failed.");
       return false;
     }
   }
+}
+
+// Stop the translation service
+function stopTranslationService(): void {
+  stopStreaming(state);
 }
 
 function cleanupClient(): void {
@@ -64,7 +69,8 @@ function cleanupClient(): void {
 // Export the public API
 export const voiceBotClient = {
   initialize,
-  toggleMic,
+  startTranslationService,
+  stopTranslationService,
   cleanupClient,
-  isMicActive: () => state.isMicOn
+  isServiceActive: () => state.isMicOn
 };
