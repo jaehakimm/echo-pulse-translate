@@ -7,7 +7,8 @@ import { processAudio, TARGET_SAMPLE_RATE } from './audioUtils';
 import { translateText } from './translationService';
 
 // Constants
-export const SERVER_ADDRESS = process.env.REACT_APP_GRPC_SERVER_URL || 'ec2-13-215-200-219.ap-southeast-1.compute.amazonaws.com:50052';
+// Replace process.env reference with a direct value
+export const SERVER_ADDRESS = 'ec2-13-215-200-219.ap-southeast-1.compute.amazonaws.com:50052';
 
 // Start streaming
 export async function startStreaming(state: VoiceBotState, stopStreamingCallback: (notifyServer?: boolean) => void): Promise<void> {
