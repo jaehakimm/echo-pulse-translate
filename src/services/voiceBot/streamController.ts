@@ -14,10 +14,12 @@ export const SERVER_ADDRESS = 'ec2-13-215-200-219.ap-southeast-1.compute.amazona
 export async function startStreaming(state: VoiceBotState, stopStreamingCallback: (notifyServer?: boolean) => void): Promise<void> {
   if (state.isMicOn || !state.grpcClient) {
     state.ui.setStatus("Already streaming or client not ready.");
+    console.log("Already streaming or client not ready.");
     return;
   }
 
   state.ui.setStatus("Initializing for direct translation...");
+  console.log("Initializing for direct translation...");
   try {
     // Send Initial Config without mic
     const configRequest = new ASRConfigRequest();
@@ -34,6 +36,7 @@ export async function startStreaming(state: VoiceBotState, stopStreamingCallback
     await new Promise<void>((resolve, reject) => {
       state.grpcClient!.getConfig(configRequest, metadata, (err, response) => {
         if (err) {
+          console.error(`GetConfig failed: ${err.message}`);
           state.ui.showError(`GetConfig failed: ${err.message}`);
           reject(err);
         } else {
@@ -45,6 +48,7 @@ export async function startStreaming(state: VoiceBotState, stopStreamingCallback
 
     // Start Audio Stream (but we're not using microphone)
     state.ui.setStatus("Connecting to translation service...");
+    console.log("Connecting to translation service...");
     state.audioStreamCall = state.grpcClient.streamAudio(metadata);
 
     // Handle incoming transcriptions
@@ -65,8 +69,9 @@ export async function startStreaming(state: VoiceBotState, stopStreamingCallback
             state.ui.setTranscript(`${text}`);
           }
         } catch (e) {
-          state.ui.showError(`Error processing transcript data: ${e}`);
+          console.error(`Error processing transcript data: ${e}`);
           console.error("Problematic response data:", result);
+          state.ui.showError(`Error processing transcript data: ${e}`);
         }
       } else {
         console.warn("Received empty or invalid response structure");
@@ -75,6 +80,7 @@ export async function startStreaming(state: VoiceBotState, stopStreamingCallback
 
     // Handle stream end
     state.audioStreamCall.on('end', () => {
+      console.log("Stream ended by server.");
       state.ui.setStatus("Stream ended by server.");
       stopStreamingCallback(false);
     });
@@ -82,8 +88,10 @@ export async function startStreaming(state: VoiceBotState, stopStreamingCallback
     // Handle errors
     state.audioStreamCall.on('error', (err: any) => {
       if (err.code !== grpc.status.CANCELLED) {
+        console.error(`Stream error: ${err.message} (Code: ${err.code})`);
         state.ui.showError(`Stream error: ${err.message} (Code: ${err.code})`);
       } else {
+        console.log("Stream cancelled.");
         state.ui.setStatus("Stream cancelled.");
       }
       stopStreamingCallback(false);
@@ -102,8 +110,10 @@ export async function startStreaming(state: VoiceBotState, stopStreamingCallback
     state.audioQueue = [];
     state.isSending = false;
     state.ui.setStatus("Translation service connected. Ready for text.");
+    console.log("Translation service connected. Ready for text.");
 
   } catch (error) {
+    console.error(`Failed to connect translation service: ${error}`);
     state.ui.showError(`Failed to connect translation service: ${error}`);
     stopStreamingCallback();
   }
@@ -112,10 +122,12 @@ export async function startStreaming(state: VoiceBotState, stopStreamingCallback
 // Stop streaming
 export function stopStreaming(state: VoiceBotState, notifyServer = true): void {
   if (!state.isMicOn && !state.mediaStream && !state.audioStreamCall) {
+    console.log("Already stopped.");
     state.ui.setStatus("Already stopped.");
     return;
   }
   
+  console.log("Stopping translation service...");
   state.ui.setStatus("Stopping translation service...");
   state.isMicOn = false;
 
@@ -125,6 +137,7 @@ export function stopStreaming(state: VoiceBotState, notifyServer = true): void {
       state.audioStreamCall.cancel();
       console.log("gRPC stream cancelled.");
     } catch (error) {
+      console.error(`Error cancelling gRPC stream: ${error}`);
       state.ui.showError(`Error cancelling gRPC stream: ${error}`);
     }
   }
@@ -132,5 +145,6 @@ export function stopStreaming(state: VoiceBotState, notifyServer = true): void {
   state.audioQueue = [];
   state.isSending = false;
 
+  console.log("Translation service disconnected.");
   state.ui.setStatus("Translation service disconnected.");
 }
