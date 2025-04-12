@@ -37,7 +37,7 @@ const ThaiSpeechPanel: React.FC<ThaiSpeechPanelProps> = ({
           </p>
         ) : (
           <p className="text-muted-foreground text-center absolute inset-0 flex items-center justify-center">
-            {isListening ? "Waiting for Thai speech..." : "Click the microphone to start"}
+            {isListening ? "Connected to server, waiting for Thai speech..." : "Click the microphone to connect to the translation server"}
           </p>
         )}
       </div>
