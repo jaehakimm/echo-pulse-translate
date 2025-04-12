@@ -3,9 +3,8 @@ import React, { useState, useEffect } from 'react';
 import ThaiSpeechPanel from './ThaiSpeechPanel';
 import EnglishTranslationPanel from './EnglishTranslationPanel';
 import ChatTranslation from './ChatTranslation';
+import { SpeechRecognitionService } from '../services/SpeechRecognitionService';
 import { TranslationService } from '../services/TranslationService';
-import { FastApiTranslationService } from '../services/FastApiTranslationService';
-import { useToast } from '@/hooks/use-toast';
 
 interface TranslationPanelProps {
   layoutMode: 'horizontal' | 'vertical' | 'chat';
@@ -16,72 +15,64 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [thaiText, setThaiText] = useState<string>('');
   const [translatedText, setTranslatedText] = useState<string>('');
+  const [interimThaiText, setInterimThaiText] = useState<string>('');
+  const [completedSentences, setCompletedSentences] = useState<string[]>([]);
+  
+  const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognitionService | null>(null);
   const [translationService] = useState<TranslationService>(new TranslationService());
-  const [fastApiService] = useState<FastApiTranslationService>(() => {
-    // Try to get the server URL from localStorage
-    const savedUrl = localStorage.getItem('translationServerUrl');
-    return new FastApiTranslationService(savedUrl || "http://localhost/stream");
-  });
   
-  const { toast } = useToast();
-  
-  // Connect to streaming service when the component mounts
+  // Initialize Web Speech API
   useEffect(() => {
-    console.log("TranslationPanel mounted, initializing services");
+    const service = new SpeechRecognitionService(
+      (interimText) => {
+        setInterimThaiText(interimText);
+        
+        // Combine completed sentences and the current interim text
+        const fullText = [
+          ...completedSentences,
+          interimText ? interimText : ''
+        ].filter(Boolean).join(' ');
+        
+        // Update the Thai text state
+        setThaiText(fullText);
+      },
+      (finalText) => {
+        setCompletedSentences(prev => {
+          const newSentences = [...prev];
+          if (interimThaiText) {
+            // If we had interim text, replace it with the final transcript
+            newSentences.pop();
+          }
+          // Add the final transcript as a complete sentence
+          if (finalText.trim()) {
+            newSentences.push(finalText.trim());
+          }
+          return newSentences;
+        });
+        setInterimThaiText('');
+        
+        // Translate the text when we have a final result
+        translateText(finalText);
+      },
+      (error) => {
+        console.error(error);
+        setIsListening(false);
+      }
+    );
     
-    // Return cleanup function
+    setSpeechRecognition(service);
+    
+    // Cleanup
     return () => {
-      console.log("TranslationPanel unmounting, disconnecting services");
-      fastApiService.disconnect();
+      service.stop();
     };
   }, []);
   
-  // Toggle listening state - connect/disconnect from server
-  const toggleListening = async () => {
-    console.log("Toggle listening:", !isListening);
-    
-    if (!isListening) {
-      // Start listening
-      toast({
-        title: "Connecting to translation service",
-        description: "Attempting to connect to the server...",
-      });
-      
-      const success = await fastApiService.connect((text, isTranslation) => {
-        console.log(`Received ${isTranslation ? 'translation' : 'Thai text'}: ${text}`);
-        
-        if (isTranslation) {
-          setTranslatedText(text);
-          // Speak the translation if not muted
-          if (!isMuted) {
-            translationService.speakTranslation(text, false);
-          }
-        } else {
-          setThaiText(text);
-        }
-      });
-      
-      if (success) {
-        setIsListening(true);
-        toast({
-          title: "Connected",
-          description: "Successfully connected to the translation service.",
-        });
-      } else {
-        toast({
-          title: "Connection Failed",
-          description: "Could not connect to the translation server. Please check if it's running.",
-          variant: "destructive",
-        });
-      }
-    } else {
-      // Stop listening
-      fastApiService.disconnect();
-      setIsListening(false);
-      toast({
-        title: "Disconnected",
-        description: "Disconnected from the translation service.",
-      });
+  // Toggle listening state
+  const toggleListening = () => {
+    if (speechRecognition) {
+      const newListeningState = speechRecognition.toggle();
+      setIsListening(newListeningState);
     }
   };
   
@@ -97,6 +88,15 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
       
       return newMuteState;
     });
+  };
+  
+  // Translate text
+  const translateText = async (text: string) => {
+    const translation = await translationService.translateText(text);
+    setTranslatedText(translation);
+    
+    // Speak the translation if not muted
+    translationService.speakTranslation(translation, isMuted);
   };
   
   // If chat layout is selected, render the chat component
