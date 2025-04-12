@@ -1,73 +1,79 @@
-# Welcome to your Lovable project
 
-## Project info
+# Thai-English Translation App
 
-**URL**: https://lovable.dev/projects/ec3aae17-14d2-4d02-8bfa-17822777d9ff
+This application provides real-time translation from Thai speech to English text.
 
-## How can I edit this code?
+## Overview
 
-There are several ways of editing your application.
+The application consists of two parts:
+1. A React frontend for displaying translations
+2. A backend server (Flask or FastAPI) for capturing audio and providing translations via streaming
 
-**Use Lovable**
+## Setup Instructions
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/ec3aae17-14d2-4d02-8bfa-17822777d9ff) and start prompting.
+### Prerequisites
+- Python 3.8 or higher
+- Node.js 14 or higher
+- Required Python packages: flask/fastapi, grpcio, pyaudio, google-protobuf, deep-translator, python-dotenv
+- Required Node packages: (included in package.json)
 
-Changes made via Lovable will be committed automatically to this repo.
+### Environment Variables
+Create a `.env` file with the following variables:
+```
+SERVER_ADDRESS=your_grpc_server_address:port
+```
 
-**Use your preferred IDE**
+### Backend (Flask/FastAPI)
+Choose one of the following options:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+#### Option 1: Run Flask Server
+```bash
+# Install required packages
+pip install flask grpcio pyaudio google-protobuf deep-translator python-dotenv
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+# Run the Flask server
+python src/services/flask_server.py
+```
 
-Follow these steps:
+#### Option 2: Run FastAPI Server
+```bash
+# Install required packages
+pip install fastapi uvicorn grpcio pyaudio google-protobuf deep-translator python-dotenv
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Run the FastAPI server
+uvicorn src.services.fastapi_server:app --host 0.0.0.0 --port 80
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Frontend (React)
+```bash
+# Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Run development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Usage
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Open the application in your browser
+2. Click the microphone button to connect to the translation server
+3. Speak in Thai
+4. See real-time translations in English
 
-**Use GitHub Codespaces**
+## Server Configuration
+You can configure the server URL in the application settings:
+1. Click the settings icon in the top right corner
+2. Enter the server URL (e.g., http://localhost/stream)
+3. Click Save
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Available Layouts
+- Horizontal: Thai and English panels side by side
+- Vertical: Thai panel on top, English panel below
+- Chat: Conversation-style interface showing both languages
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/ec3aae17-14d2-4d02-8bfa-17822777d9ff) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes it is!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Technical Details
+This application uses:
+- Web Speech API for text-to-speech
+- gRPC for speech recognition
+- Deep Translator for Thai to English translation
+- Flask/FastAPI for backend streaming

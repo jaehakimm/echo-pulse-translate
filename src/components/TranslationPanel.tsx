@@ -17,33 +17,17 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
   const [thaiText, setThaiText] = useState<string>('');
   const [translatedText, setTranslatedText] = useState<string>('');
   const [translationService] = useState<TranslationService>(new TranslationService());
-  const [fastApiService] = useState<FastApiTranslationService>(
-    new FastApiTranslationService("http://localhost/stream") // Update this URL to match your server
-  );
+  const [fastApiService] = useState<FastApiTranslationService>(() => {
+    // Try to get the server URL from localStorage
+    const savedUrl = localStorage.getItem('translationServerUrl');
+    return new FastApiTranslationService(savedUrl || "http://localhost/stream");
+  });
   
   const { toast } = useToast();
   
-  // Connect to FastAPI service when the component mounts
+  // Connect to streaming service when the component mounts
   useEffect(() => {
     console.log("TranslationPanel mounted, initializing services");
-    
-    // Define handler for text from FastAPI service
-    const handleFastApiText = (text: string, isTranslation: boolean) => {
-      console.log(`Received from FastAPI: ${isTranslation ? 'Translation' : 'Thai text'}: ${text}`);
-      
-      if (isTranslation) {
-        // Handle translated English text
-        setTranslatedText(text);
-        
-        // Speak the translation if not muted
-        if (!isMuted) {
-          translationService.speakTranslation(text, false);
-        }
-      } else {
-        // Handle Thai text
-        setThaiText(text);
-      }
-    };
     
     // Return cleanup function
     return () => {
@@ -52,7 +36,7 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
     };
   }, []);
   
-  // Toggle listening state - connect/disconnect from FastAPI
+  // Toggle listening state - connect/disconnect from server
   const toggleListening = async () => {
     console.log("Toggle listening:", !isListening);
     
@@ -60,10 +44,12 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
       // Start listening
       toast({
         title: "Connecting to translation service",
-        description: "Attempting to connect to the FastAPI server...",
+        description: "Attempting to connect to the server...",
       });
       
       const success = await fastApiService.connect((text, isTranslation) => {
+        console.log(`Received ${isTranslation ? 'translation' : 'Thai text'}: ${text}`);
+        
         if (isTranslation) {
           setTranslatedText(text);
           // Speak the translation if not muted

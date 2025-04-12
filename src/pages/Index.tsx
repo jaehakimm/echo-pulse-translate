@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AppHeader from '@/components/AppHeader';
 import TranslationPanel from '@/components/TranslationPanel';
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,15 @@ import { Settings } from 'lucide-react';
 const Index = () => {
   const [layoutMode, setLayoutMode] = useState<'horizontal' | 'vertical' | 'chat'>('horizontal');
   const [showSettings, setShowSettings] = useState(false);
-  const [serverUrl, setServerUrl] = useState<string>("http://localhost/stream");
+  const [serverUrl, setServerUrl] = useState<string>(() => {
+    // Initialize from localStorage or use default
+    return localStorage.getItem('translationServerUrl') || "http://localhost/stream";
+  });
+  
+  useEffect(() => {
+    // Log the current server URL on component mount
+    console.log("Current translation server URL:", serverUrl);
+  }, []);
   
   const handleLayoutChange = (mode: 'horizontal' | 'vertical' | 'chat') => {
     setLayoutMode(mode);
@@ -21,8 +29,14 @@ const Index = () => {
   
   const saveSettings = () => {
     // Save settings to local storage
-    localStorage.setItem('fastApiServerUrl', serverUrl);
+    localStorage.setItem('translationServerUrl', serverUrl);
+    console.log("Translation server URL saved:", serverUrl);
+    
+    // Display message about server restart needed
     setShowSettings(false);
+    
+    // Force page reload to apply new server URL
+    window.location.reload();
   };
   
   return <div className="min-h-screen p-6 md:p-12 flex flex-col">
@@ -52,7 +66,7 @@ const Index = () => {
             <Button onClick={saveSettings}>Save</Button>
           </div>
           <p className="text-sm text-muted-foreground mt-2">
-            Enter the URL of your FastAPI translation server.
+            Enter the URL of your translation server. Application will reload after saving.
           </p>
         </div>
       )}
