@@ -1,8 +1,18 @@
+
 # Welcome to your Lovable project
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/ec3aae17-14d2-4d02-8bfa-17822777d9ff
+
+## FastAPI Integration
+
+This application is designed to work with a FastAPI backend for real-time Thai to English translation.
+To integrate with a FastAPI server:
+
+1. Configure the API URL in the settings
+2. Ensure your FastAPI server implements the required endpoints:
+   - `/stream` - WebSocket endpoint for real-time translation
 
 ## How can I edit this code?
 
@@ -35,20 +45,6 @@ npm i
 # Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
 
 ## What technologies are used for this project?
 

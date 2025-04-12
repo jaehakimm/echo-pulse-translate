@@ -2,9 +2,18 @@
 import { useState, useEffect } from 'react';
 import AppHeader from '@/components/AppHeader';
 import TranslationPanel from '@/components/TranslationPanel';
+import { apiService } from '@/services/ApiService';
 
 const Index = () => {
   const [layoutMode, setLayoutMode] = useState<'horizontal' | 'vertical'>('horizontal');
+  
+  // Load saved API URL from localStorage if available
+  useEffect(() => {
+    const savedApiUrl = localStorage.getItem('apiUrl');
+    if (savedApiUrl) {
+      apiService.setBaseUrl(savedApiUrl);
+    }
+  }, []);
   
   const handleLayoutChange = (mode: 'horizontal' | 'vertical') => {
     setLayoutMode(mode);

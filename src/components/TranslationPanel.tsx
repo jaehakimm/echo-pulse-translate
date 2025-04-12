@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import ThaiSpeechPanel from './ThaiSpeechPanel';
 import EnglishTranslationPanel from './EnglishTranslationPanel';
 import { SpeechRecognitionService } from '../services/SpeechRecognitionService';
-import { TranslationService } from '../services/TranslationService';
+import { translationService } from '../services/TranslationService';
 
 interface TranslationPanelProps {
   layoutMode: 'horizontal' | 'vertical';
@@ -18,7 +18,6 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
   const [completedSentences, setCompletedSentences] = useState<string[]>([]);
   
   const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognitionService | null>(null);
-  const [translationService] = useState<TranslationService>(new TranslationService());
   
   // Initialize Web Speech API
   useEffect(() => {

@@ -1,11 +1,18 @@
 
+import { ApiService } from './ApiService';
+
 export class TranslationService {
+  private apiService: ApiService;
+  
+  constructor(apiService: ApiService) {
+    this.apiService = apiService;
+  }
+  
   translateText(text: string): Promise<string> {
     return new Promise((resolve) => {
       // For demo purposes, we're using a mock translation
-      // In a real app, you would call a translation API here
+      // In a real app, this will use the ApiService
       setTimeout(() => {
-        // This is where you would integrate with an actual translation API
         const mockTranslation = `[English translation for: "${text}"]`;
         resolve(mockTranslation);
       }, 500);
@@ -26,3 +33,5 @@ export class TranslationService {
     }
   }
 }
+
+export const translationService = new TranslationService(new ApiService());
