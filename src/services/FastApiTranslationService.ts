@@ -4,7 +4,7 @@
  * This service establishes a connection to the server and handles the streaming translation.
  */
 export class FastApiTranslationService {
-  private streamUrl = "http://localhost/stream"; // Default URL, can be overridden in constructor
+  private streamUrl = "https://api-ts-tagname.onrender.com"; // Default URL, can be overridden in constructor
   private controller: AbortController | null = null;
   private isConnected = false;
   private listener: ((text: string, isTranslation: boolean) => void) | null = null;
