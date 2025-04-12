@@ -2,12 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import ThaiSpeechPanel from './ThaiSpeechPanel';
 import EnglishTranslationPanel from './EnglishTranslationPanel';
-import ChatTranslation from './ChatTranslation';
 import { SpeechRecognitionService } from '../services/SpeechRecognitionService';
 import { TranslationService } from '../services/TranslationService';
 
 interface TranslationPanelProps {
-  layoutMode: 'horizontal' | 'vertical' | 'chat';
+  layoutMode: 'horizontal' | 'vertical';
 }
 
 const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
@@ -98,20 +97,6 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
     // Speak the translation if not muted
     translationService.speakTranslation(translation, isMuted);
   };
-  
-  // If chat layout is selected, render the chat component
-  if (layoutMode === 'chat') {
-    return (
-      <ChatTranslation
-        isListening={isListening}
-        isMuted={isMuted}
-        thaiText={thaiText}
-        translatedText={translatedText}
-        toggleListening={toggleListening}
-        toggleMute={toggleMute}
-      />
-    );
-  }
 
   // For horizontal or vertical layouts
   const mainContainerClass = layoutMode === 'horizontal' 
