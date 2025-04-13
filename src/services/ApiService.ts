@@ -9,6 +9,8 @@ export interface TranslationResponse {
   isPartial: boolean;
 }
 
+export type TranslationProvider = 'gemini' | 'google' | 'fastapi';
+
 export class ApiService {
   private baseUrl: string = '';
   
@@ -37,6 +39,36 @@ export class ApiService {
     // Placeholder for future implementation
     // Will connect to FastAPI endpoint
     return null;
+  }
+
+  /**
+   * Make a request to Google Translate API
+   * This is a placeholder for the actual API call
+   */
+  async translateWithGoogle(text: string): Promise<string> {
+    try {
+      // In a production environment, this would be a real API call
+      // For now, we'll mock the response
+      return `[Google translation: "${text}"]`;
+    } catch (error) {
+      console.error('Google Translate API error:', error);
+      return `Error translating text`;
+    }
+  }
+
+  /**
+   * Make a request to Gemini AI API
+   * This is a placeholder for the actual API call
+   */
+  async translateWithGemini(text: string): Promise<string> {
+    try {
+      // In a production environment, this would be a real API call
+      // For now, we'll mock the response
+      return `[Gemini AI translation: "${text}"]`;
+    } catch (error) {
+      console.error('Gemini AI API error:', error);
+      return `Error translating text`;
+    }
   }
 }
 

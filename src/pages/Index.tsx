@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import AppHeader from '@/components/AppHeader';
 import TranslationPanel from '@/components/TranslationPanel';
 import { apiService } from '@/services/ApiService';
+import { Toaster } from "@/components/ui/toaster";
 
 const Index = () => {
   const [layoutMode, setLayoutMode] = useState<'horizontal' | 'vertical'>('horizontal');
@@ -32,6 +33,9 @@ const Index = () => {
           <span className="gradient-border inline-block px-4 py-1 rounded-full">Botnoi Translate — Powered by AI</span>
         </div>
       </footer>
+      
+      {/* Toaster for showing notifications */}
+      <Toaster />
     </div>
   );
 };
