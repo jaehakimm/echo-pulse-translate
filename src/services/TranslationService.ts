@@ -1,24 +1,13 @@
-
-import { ApiService, TranslationProvider } from './ApiService';
+import { ApiService } from './ApiService';
 import { useToast } from '@/hooks/use-toast';
 
 export class TranslationService {
   private apiService: ApiService;
-  private translationProvider: TranslationProvider = 'google'; // default provider
   
   constructor(apiService: ApiService) {
     this.apiService = apiService;
   }
   
-  setTranslationProvider(provider: TranslationProvider): void {
-    this.translationProvider = provider;
-  }
-  
-  getTranslationProvider(): TranslationProvider {
-    return this.translationProvider;
-  }
-
-  // Add a public method to get the API base URL
   getApiBaseUrl(): string {
     return this.apiService.getBaseUrl();
   }
@@ -29,20 +18,7 @@ export class TranslationService {
     }
     
     try {
-      switch (this.translationProvider) {
-        case 'gemini':
-          return await this.apiService.translateWithGemini(text);
-        case 'google':
-          return await this.apiService.translateWithGoogle(text);
-        case 'fastapi':
-          // This will be implemented when the FastAPI integration is ready
-          if (!this.apiService.getBaseUrl()) {
-            throw new Error('FastAPI URL not configured');
-          }
-          return `[FastAPI translation (coming soon): "${text}"]`;
-        default:
-          return `[Translation for: "${text}"]`;
-      }
+      return await this.apiService.translateWithGoogle(text);
     } catch (error) {
       console.error('Translation error:', error);
       return `Error translating: "${text}"`;
