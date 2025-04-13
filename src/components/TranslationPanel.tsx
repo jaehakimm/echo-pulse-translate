@@ -163,7 +163,7 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
             <DropdownMenuItem onClick={() => changeProvider('gemini')}>
               Gemini AI
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => changeProvider('fastapi')} disabled={!translationService.apiService.getBaseUrl()}>
+            <DropdownMenuItem onClick={() => changeProvider('fastapi')} disabled={!translationService.getApiBaseUrl()}>
               FastAPI (coming soon)
             </DropdownMenuItem>
           </DropdownMenuContent>

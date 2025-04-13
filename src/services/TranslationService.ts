@@ -17,6 +17,11 @@ export class TranslationService {
   getTranslationProvider(): TranslationProvider {
     return this.translationProvider;
   }
+
+  // Add a public method to get the API base URL
+  getApiBaseUrl(): string {
+    return this.apiService.getBaseUrl();
+  }
   
   async translateText(text: string): Promise<string> {
     if (!text.trim()) {
