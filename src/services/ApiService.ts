@@ -8,8 +8,6 @@ export interface TranslationResponse {
   isPartial: boolean;
 }
 
-export type TranslationProvider = 'google';
-
 export class ApiService {
   private baseUrl: string = '';
   

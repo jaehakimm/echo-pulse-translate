@@ -2,10 +2,17 @@
 import React, { useState, useEffect } from 'react';
 import ThaiSpeechPanel from './ThaiSpeechPanel';
 import EnglishTranslationPanel from './EnglishTranslationPanel';
+import TranslationSettings from './TranslationSettings';
 import { SpeechRecognitionService } from '../services/SpeechRecognitionService';
 import { translationService } from '../services/TranslationService';
 import { Button } from "@/components/ui/button";
 import { useToast } from '@/hooks/use-toast';
+import { Settings } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface TranslationPanelProps {
   layoutMode: 'horizontal' | 'vertical';
@@ -18,6 +25,8 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
   const [translatedText, setTranslatedText] = useState<string>('');
   const [interimThaiText, setInterimThaiText] = useState<string>('');
   const [completedSentences, setCompletedSentences] = useState<string[]>([]);
+  const [isGrpcStreaming, setIsGrpcStreaming] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   
   const { toast } = useToast();
   const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognitionService | null>(null);
@@ -72,22 +81,95 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
     // Cleanup
     return () => {
       service.stop();
+      stopGrpcStreaming();
     };
   }, []);
   
+  // Set up gRPC translation listeners
+  useEffect(() => {
+    const handleGrpcTranslation = (translation: string) => {
+      setTranslatedText(translation);
+      translationService.speakTranslation(translation, isMuted);
+    };
+    
+    const handleGrpcError = (error: string) => {
+      toast({
+        title: "Translation Error",
+        description: error,
+        variant: "destructive",
+      });
+    };
+    
+    translationService.onGrpcTranslation(handleGrpcTranslation);
+    translationService.onGrpcError(handleGrpcError);
+    
+    return () => {
+      translationService.offGrpcTranslation(handleGrpcTranslation);
+      translationService.offGrpcError(handleGrpcError);
+    };
+  }, [isMuted]);
+  
   // Toggle listening state
-  const toggleListening = () => {
-    if (speechRecognition) {
-      const newListeningState = speechRecognition.toggle();
-      setIsListening(newListeningState);
+  const toggleListening = async () => {
+    const provider = translationService.getTranslationProvider();
+    
+    if (provider === 'google') {
+      // Use Web Speech API for Google Translate
+      if (speechRecognition) {
+        const newListeningState = speechRecognition.toggle();
+        setIsListening(newListeningState);
+        
+        toast({
+          title: newListeningState ? "Listening Started" : "Listening Stopped",
+          description: newListeningState 
+            ? "Speak in Thai to see real-time translation" 
+            : "Speech recognition paused",
+        });
+      }
+    } else if (provider === 'grpc') {
+      // Toggle gRPC audio streaming
+      if (isGrpcStreaming) {
+        stopGrpcStreaming();
+      } else {
+        startGrpcStreaming();
+      }
+    }
+  };
+  
+  const startGrpcStreaming = async () => {
+    try {
+      const started = await translationService.startStreamingAudio();
+      
+      if (started) {
+        setIsGrpcStreaming(true);
+        setIsListening(true);
+        
+        toast({
+          title: "Streaming Started",
+          description: "Streaming audio to gRPC translation server",
+        });
+      } else {
+        toast({
+          title: "Streaming Failed",
+          description: "Failed to start audio streaming. Check connection to server.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error starting gRPC streaming:', error);
       
       toast({
-        title: newListeningState ? "Listening Started" : "Listening Stopped",
-        description: newListeningState 
-          ? "Speak in Thai to see real-time translation" 
-          : "Speech recognition paused",
+        title: "Streaming Error",
+        description: "Could not access microphone or start streaming",
+        variant: "destructive",
       });
     }
+  };
+  
+  const stopGrpcStreaming = () => {
+    translationService.stopStreamingAudio();
+    setIsGrpcStreaming(false);
+    setIsListening(false);
   };
   
   // Toggle mute state
@@ -135,6 +217,20 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
 
   return (
     <div className="space-y-4">
+      {/* Settings Dialog */}
+      <div className="flex justify-end">
+        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="icon">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <TranslationSettings onClose={() => setSettingsOpen(false)} />
+          </DialogContent>
+        </Dialog>
+      </div>
+      
       {/* Translation Panels */}
       <div className={mainContainerClass}>
         {/* Thai Speech Input Panel */}
