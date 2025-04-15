@@ -11,6 +11,7 @@ export class TranslationService {
   private mediaRecorder: MediaRecorder | null = null;
   private isRecording: boolean = false;
   private recordingInterval: number | null = null;
+  private partialTranslation: string = '';
   
   constructor(apiService: ApiService) {
     this.apiService = apiService;
@@ -51,6 +52,14 @@ export class TranslationService {
       console.error('Translation error:', error);
       return `Error translating: "${text}"`;
     }
+  }
+  
+  getPartialTranslation(): string {
+    return this.partialTranslation;
+  }
+  
+  setPartialTranslation(text: string): void {
+    this.partialTranslation = text;
   }
   
   speakTranslation(text: string, isMuted: boolean): void {
@@ -95,15 +104,23 @@ export class TranslationService {
     
     try {
       if (!this.mediaStream) {
-        this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            channelCount: 1,
+            sampleRate: 8000, // Match Python client settings
+            echoCancellation: true,
+            noiseSuppression: true
+          } 
+        });
       }
       
       if (!this.audioContext) {
-        this.audioContext = new AudioContext();
+        this.audioContext = new AudioContext({ sampleRate: 8000 }); // Match Python client settings
       }
       
       // Create a MediaRecorder to capture audio chunks
-      this.mediaRecorder = new MediaRecorder(this.mediaStream);
+      const options = { mimeType: 'audio/webm;codecs=pcm' };
+      this.mediaRecorder = new MediaRecorder(this.mediaStream, options);
       this.isRecording = true;
       
       this.mediaRecorder.ondataavailable = (event) => {
@@ -112,7 +129,8 @@ export class TranslationService {
         }
       };
       
-      this.mediaRecorder.start(100); // Capture audio in 100ms chunks
+      // Use 160ms chunks to match Python CHUNK_SIZE at 8000Hz (160 samples)
+      this.mediaRecorder.start(160); 
       
       // Periodically check connection and restart if needed
       this.recordingInterval = window.setInterval(() => {
@@ -147,6 +165,14 @@ export class TranslationService {
   
   offGrpcTranslation(callback: (text: string) => void): void {
     grpcTranslationService.offTranslation(callback);
+  }
+  
+  onGrpcPartialTranslation(callback: (text: string) => void): void {
+    grpcTranslationService.onPartialTranslation(callback);
+  }
+  
+  offGrpcPartialTranslation(callback: (text: string) => void): void {
+    grpcTranslationService.offPartialTranslation(callback);
   }
   
   onGrpcError(callback: (error: string) => void): void {

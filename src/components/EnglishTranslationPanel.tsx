@@ -8,12 +8,14 @@ import SpeechWaveform from './SpeechWaveform';
 interface EnglishTranslationPanelProps {
   isMuted: boolean;
   translatedText: string;
+  hasPartialTranslation?: boolean;
   toggleMute: () => void;
 }
 
 const EnglishTranslationPanel: React.FC<EnglishTranslationPanelProps> = ({
   isMuted,
   translatedText,
+  hasPartialTranslation = false,
   toggleMute
 }) => {
   return (
@@ -34,6 +36,9 @@ const EnglishTranslationPanel: React.FC<EnglishTranslationPanelProps> = ({
         {translatedText ? (
           <p className="text-3xl font-medium animate-fade-in whitespace-pre-wrap">
             {translatedText}
+            {hasPartialTranslation && (
+              <span className="text-muted-foreground animate-pulse">...</span>
+            )}
           </p>
         ) : (
           <p className="text-muted-foreground text-center absolute inset-0 flex items-center justify-center">

@@ -24,6 +24,7 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
   const [thaiText, setThaiText] = useState<string>('');
   const [translatedText, setTranslatedText] = useState<string>('');
   const [interimThaiText, setInterimThaiText] = useState<string>('');
+  const [partialTranslation, setPartialTranslation] = useState<string>('');
   const [completedSentences, setCompletedSentences] = useState<string[]>([]);
   const [isGrpcStreaming, setIsGrpcStreaming] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -89,7 +90,12 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
   useEffect(() => {
     const handleGrpcTranslation = (translation: string) => {
       setTranslatedText(translation);
+      setPartialTranslation('');
       translationService.speakTranslation(translation, isMuted);
+    };
+    
+    const handleGrpcPartialTranslation = (translation: string) => {
+      setPartialTranslation(translation);
     };
     
     const handleGrpcError = (error: string) => {
@@ -101,10 +107,12 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
     };
     
     translationService.onGrpcTranslation(handleGrpcTranslation);
+    translationService.onGrpcPartialTranslation(handleGrpcPartialTranslation);
     translationService.onGrpcError(handleGrpcError);
     
     return () => {
       translationService.offGrpcTranslation(handleGrpcTranslation);
+      translationService.offGrpcPartialTranslation(handleGrpcPartialTranslation);
       translationService.offGrpcError(handleGrpcError);
     };
   }, [isMuted]);
@@ -206,6 +214,11 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
     }
   };
 
+  // Combine translated text with partial translation if available
+  const displayTranslatedText = partialTranslation 
+    ? `${translatedText} ${partialTranslation}`
+    : translatedText;
+
   // For horizontal or vertical layouts
   const mainContainerClass = layoutMode === 'horizontal' 
     ? 'flex flex-col md:flex-row gap-4 h-full' 
@@ -246,7 +259,8 @@ const TranslationPanel: React.FC<TranslationPanelProps> = ({ layoutMode }) => {
         <div className={panelClass}>
           <EnglishTranslationPanel
             isMuted={isMuted}
-            translatedText={translatedText}
+            translatedText={displayTranslatedText}
+            hasPartialTranslation={!!partialTranslation}
             toggleMute={toggleMute}
           />
         </div>

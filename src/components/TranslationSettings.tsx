@@ -48,6 +48,9 @@ const TranslationSettings: React.FC<TranslationSettingsProps> = ({ onClose }) =>
             description: "Connected to gRPC translation server",
           });
           
+          // Save the URL in local storage for persistence
+          localStorage.setItem('grpcServerUrl', grpcUrl);
+          
           // Close the settings dialog if a callback was provided
           if (onClose) {
             onClose();
@@ -68,6 +71,14 @@ const TranslationSettings: React.FC<TranslationSettingsProps> = ({ onClose }) =>
       }
     }
   };
+  
+  // Load saved gRPC URL from localStorage when component mounts
+  React.useEffect(() => {
+    const savedGrpcUrl = localStorage.getItem('grpcServerUrl');
+    if (savedGrpcUrl) {
+      setGrpcUrl(savedGrpcUrl);
+    }
+  }, []);
   
   return (
     <Card className="w-full max-w-md">
@@ -109,7 +120,7 @@ const TranslationSettings: React.FC<TranslationSettingsProps> = ({ onClose }) =>
               placeholder="ws://localhost:8080"
             />
             <p className="text-sm text-muted-foreground">
-              Enter the WebSocket URL of your gRPC translation server
+              Enter the WebSocket URL of your gRPC translation server (e.g., ws://localhost:8080)
             </p>
           </div>
         )}

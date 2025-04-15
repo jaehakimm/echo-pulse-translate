@@ -15,6 +15,7 @@ export class WebSocketService {
   private maxReconnectAttempts: number = 5;
   private reconnectDelay: number = 2000;
   private isConnecting: boolean = false;
+  private sessionId: string = "SESSION_TRANSLATE"; // Matches your Python client
   
   constructor(url?: string) {
     if (url) {
@@ -60,6 +61,10 @@ export class WebSocketService {
           console.log('WebSocket connection established');
           this.isConnecting = false;
           this.reconnectAttempts = 0;
+          
+          // Send initial config message matching Python client format
+          this.sendConfigMessage();
+          
           this.triggerEventHandlers('connect', {});
           resolve();
         };
@@ -88,12 +93,30 @@ export class WebSocketService {
             const data = JSON.parse(event.data);
             this.triggerEventHandlers('message', data);
             
+            // Handle translation response format from gRPC server
+            if (data.transcript && data.is_final !== undefined) {
+              // Format matches your Python client structure
+              if (data.is_final) {
+                this.triggerEventHandlers('translation', { 
+                  translation: data.transcript.result.text,
+                  isPartial: false 
+                });
+              } else {
+                this.triggerEventHandlers('partialTranslation', { 
+                  translation: data.transcript.result.text,
+                  isPartial: true
+                });
+              }
+            }
+            
             // If message has a type, trigger specific handlers
             if (data.type) {
               this.triggerEventHandlers(data.type, data);
             }
           } catch (error) {
             console.error('Error parsing WebSocket message:', error);
+            // Try handling binary data if JSON parse failed
+            this.triggerEventHandlers('binary', event.data);
           }
         };
       } catch (error) {
@@ -104,8 +127,34 @@ export class WebSocketService {
     });
   }
   
+  private sendConfigMessage(): void {
+    if (!this.isConnected()) return;
+    
+    // Format matches the Python client's config message
+    const configMessage = {
+      type: "config",
+      asr_provider: "google-cloud",
+      asr_language_code: "th-TH",
+      timeout: 30.0,
+      session_id: this.sessionId
+    };
+    
+    this.send(configMessage);
+  }
+  
   disconnect(): void {
     if (this.socket) {
+      try {
+        // Send disconnect message before closing
+        const disconnectMessage = {
+          type: "disconnect",
+          session_id: this.sessionId
+        };
+        this.send(disconnectMessage);
+      } catch (error) {
+        console.error("Error sending disconnect message:", error);
+      }
+      
       this.socket.close();
       this.socket = null;
     }
@@ -131,12 +180,16 @@ export class WebSocketService {
     }
     
     try {
-      // For binary data like audio chunks, use binary WebSocket
-      if (this.socket) {
-        this.socket.send(audioChunk);
-        return true;
-      }
-      return false;
+      // Add metadata to match Python client format
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result instanceof ArrayBuffer && this.socket) {
+          // Send raw audio data to match Python client format
+          this.socket.send(reader.result);
+        }
+      };
+      reader.readAsArrayBuffer(audioChunk);
+      return true;
     } catch (error) {
       console.error('Error sending audio chunk via WebSocket:', error);
       return false;

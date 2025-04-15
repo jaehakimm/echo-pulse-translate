@@ -4,10 +4,17 @@ import { toast } from '@/hooks/use-toast';
 
 export type TranslationProvider = 'google' | 'grpc';
 
+// Interface to match Python's translation structure
+export interface TranslationResponse {
+  translation: string;
+  isPartial: boolean;
+}
+
 export class GrpcTranslationService {
   private isConnected: boolean = false;
   private serverUrl: string = '';
   private translationCallbacks: ((text: string) => void)[] = [];
+  private partialTranslationCallbacks: ((text: string) => void)[] = [];
   private errorCallbacks: ((error: string) => void)[] = [];
   
   constructor(serverUrl?: string) {
@@ -17,6 +24,7 @@ export class GrpcTranslationService {
     
     // Set up WebSocket event handlers
     webSocketService.on('translation', this.handleTranslationMessage.bind(this));
+    webSocketService.on('partialTranslation', this.handlePartialTranslationMessage.bind(this));
     webSocketService.on('error', this.handleErrorMessage.bind(this));
     webSocketService.on('connect', this.handleConnect.bind(this));
     webSocketService.on('disconnect', this.handleDisconnect.bind(this));
@@ -81,6 +89,19 @@ export class GrpcTranslationService {
     }
   }
   
+  onPartialTranslation(callback: (text: string) => void): void {
+    if (!this.partialTranslationCallbacks.includes(callback)) {
+      this.partialTranslationCallbacks.push(callback);
+    }
+  }
+  
+  offPartialTranslation(callback: (text: string) => void): void {
+    const index = this.partialTranslationCallbacks.indexOf(callback);
+    if (index !== -1) {
+      this.partialTranslationCallbacks.splice(index, 1);
+    }
+  }
+  
   onError(callback: (error: string) => void): void {
     if (!this.errorCallbacks.includes(callback)) {
       this.errorCallbacks.push(callback);
@@ -94,9 +115,15 @@ export class GrpcTranslationService {
     }
   }
   
-  private handleTranslationMessage(data: any): void {
+  private handleTranslationMessage(data: TranslationResponse): void {
     if (data && data.translation) {
       this.notifyTranslationCallbacks(data.translation);
+    }
+  }
+  
+  private handlePartialTranslationMessage(data: TranslationResponse): void {
+    if (data && data.translation) {
+      this.notifyPartialTranslationCallbacks(data.translation);
     }
   }
   
@@ -141,6 +168,16 @@ export class GrpcTranslationService {
         callback(text);
       } catch (error) {
         console.error('Error in translation callback:', error);
+      }
+    });
+  }
+  
+  private notifyPartialTranslationCallbacks(text: string): void {
+    this.partialTranslationCallbacks.forEach(callback => {
+      try {
+        callback(text);
+      } catch (error) {
+        console.error('Error in partial translation callback:', error);
       }
     });
   }
