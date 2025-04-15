@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,17 +29,23 @@ const TranslationSettings: React.FC<TranslationSettingsProps> = ({ onClose }) =>
     setConnectionError(null);
   };
   
+  const formatWebSocketUrl = (url: string): string => {
+    if (url.startsWith('ws://') || url.startsWith('wss://')) {
+      return url;
+    }
+    return `ws://${url}`;
+  };
+  
   const handleSaveSettings = async () => {
-    // Save the provider selection
     translationService.setTranslationProvider(provider);
     
-    // If gRPC selected, try to connect
     if (provider === 'grpc' && grpcUrl) {
       setIsConnecting(true);
       setConnectionError(null);
       
       try {
-        const connected = await translationService.connectToGrpcServer(grpcUrl);
+        const formattedUrl = formatWebSocketUrl(grpcUrl);
+        const connected = await translationService.connectToGrpcServer(formattedUrl);
         
         if (connected) {
           toast({
@@ -48,10 +53,8 @@ const TranslationSettings: React.FC<TranslationSettingsProps> = ({ onClose }) =>
             description: "Connected to gRPC translation server",
           });
           
-          // Save the URL in local storage for persistence
-          localStorage.setItem('grpcServerUrl', grpcUrl);
+          localStorage.setItem('grpcServerUrl', formattedUrl);
           
-          // Close the settings dialog if a callback was provided
           if (onClose) {
             onClose();
           }
@@ -65,14 +68,12 @@ const TranslationSettings: React.FC<TranslationSettingsProps> = ({ onClose }) =>
         setIsConnecting(false);
       }
     } else {
-      // Close the settings dialog if a callback was provided
       if (onClose) {
         onClose();
       }
     }
   };
   
-  // Load saved gRPC URL from localStorage when component mounts
   React.useEffect(() => {
     const savedGrpcUrl = localStorage.getItem('grpcServerUrl');
     if (savedGrpcUrl) {
@@ -117,10 +118,10 @@ const TranslationSettings: React.FC<TranslationSettingsProps> = ({ onClose }) =>
               id="grpc-url"
               value={grpcUrl}
               onChange={(e) => setGrpcUrl(e.target.value)}
-              placeholder="ws://localhost:8080"
+              placeholder="test.compute.amazonaws.com:9090"
             />
             <p className="text-sm text-muted-foreground">
-              Enter the WebSocket URL of your gRPC translation server (e.g., ws://localhost:8080)
+              Enter the server address (e.g., test.compute.amazonaws.com:9090). The WebSocket protocol (ws://) will be added automatically if needed.
             </p>
           </div>
         )}
